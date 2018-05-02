@@ -44,7 +44,7 @@ class TrainTFIDF():
     def collect_sentences(self):
         sentences_list = []
         for i, line in enumerate(self.sentences):
-            print("Done:", i)
+            if i % 100 == 0: print("Done:", i)
             sentences_list.append(' '.join(line))
         return sentences_list
 
@@ -53,7 +53,7 @@ class TrainTFIDF():
         vectorizer = TfidfVectorizer(min_df=1)
         vectorizer.fit_transform(sentence_list)
         idf = vectorizer.idf_
-        idf = idf / np.sum(idf)
+        # idf = idf / np.sum(idf)
         weights_dict = dict(zip(vectorizer.get_feature_names(), idf))
         return weights_dict
 
@@ -61,12 +61,14 @@ class TrainTFIDF():
 class FeaturizeData():
     def __init__(self, model_filename, tfidf_model_filename, train_filename, dev_filename,
                  labeled_data_dirname, unlabeled_data_dirname):
-        self.model = gensim.models.KeyedVectors.load_word2vec_format(model_filename, binary=True)
+        self.word2vec_model = gensim.models.KeyedVectors.load_word2vec_format(model_filename, binary=True)
         self.tfidf_model = pkl.load(io.open(tfidf_model_filename, 'rb'))
         self.train_filename = train_filename
         self.dev_filename = dev_filename
         self.labeled_data_dirname = labeled_data_dirname
         self.unlabeled_data_dirname = unlabeled_data_dirname
+        self.unlabeled_data_files = np.array([os.path.join(self.unlabeled_data_dirname, fname)
+                                                for fname in os.listdir(self.unlabeled_data_dirname)])
         print("models loaded")
 
 
@@ -82,12 +84,11 @@ class FeaturizeData():
         train_files_itr = SentenceFileItr(train_data_files)
         train_x = np.zeros((len(train_labels), 300)) # change this to num features
         for i, sentence in enumerate(train_files_itr):
+            if i % 100 == 0: print("Done {0} out of {1}".format(i, len(train_labels)))
             train_x[i] = self.get_feature_vector(sentence)
             # print(train_x[i])
-            break
-        exit(1)
 
-        return train_x, train_labels
+        return train_x, np.array(train_labels)
 
 
     def get_devset(self):
@@ -102,32 +103,65 @@ class FeaturizeData():
         dev_x = np.zeros((len(dev_labels), 300))
         for i, sentence in enumerate(dev_files_itr):
             dev_x[i] = self.get_feature_vector(sentence)
-        return dev_x, dev_labels
+
+        return dev_x, np.array(dev_labels)
+
+
+    def get_unlabeled_word_list(self, batch_size=10):
+        np.random.shuffle(self.unlabeled_data_files)
+        splits = self.unlabeled_data_files.shape[0] / batch_size
+        batches = np.array_split(self.unlabeled_data_files, int(splits))
+        for batch_files in batches:
+            batch_itr = SentenceFileItr(batch_files)
+            batch_word_list = np.zeros((batch_files.shape[0], 300))
+
+            for i, doc_word_list in enumerate(batch_itr):
+                batch_word_list[i] = self.get_feature_vector(doc_word_list)
+
+            yield batch_word_list, batch_files
 
 
     def get_feature_vector(self, word_list):
-        print(word_list)
+        # print(word_list)
         word_feature = np.zeros((300)) # change this to num features
         i = 0
         for word in word_list:
             try:
-                print("word {0} tfifd {1}".format(word, self.tfidf_model[word]))
-                word_feature += self.tfidf_model[word] * self.model[word]
+                # print("word {0} tfifd {1}".format(word, self.tfidf_model[word]))
+                word_feature += self.tfidf_model[word] * self.word2vec_model[word]
             except:
-                i+=1
-                print("here with word", word)
                 continue
 
-        print("words found: {0}, words not found {1}".format(len(word_list) - i, i))
+        # print("words found: {0}, words not found {1}".format(len(word_list) - i, i))
         return word_feature
 
 
+
+
+# TFIDF Model training and saving
 # tfidf = TrainTFIDF('./data/A3/labeled', './data/A3/unlabeled')
 # weights_dict = tfidf.get_tfidf()
 # weights_file = io.open("models/tfidf_weights.pkl", 'wb')
 # pkl.dump(weights_dict, weights_file)
 
 
-fd = FeaturizeData('models/google_word2vec.bin', 'models/tfidf_weights.pkl', 'data/A3/train.tsv',
-                   'data/A3/dev.tsv', 'data/A3/labeled', 'data/A3/unlabeled')
-fd.get_trainset()
+# Using FeaturizeData class
+# fd = FeaturizeData('models/google_word2vec.bin', 'models/tfidf_weights.pkl', 'data/A3/train.tsv',
+#                    'data/A3/dev.tsv', 'data/A3/labeled', 'data/A3/unlabeled')
+#
+# i = 0
+# for un_batch, un_batch_files in fd.get_unlabeled_word_list(batch_size=100):
+#     i+=1
+#     print(i)
+#     print(un_batch.shape)
+
+# train_x, train_y = fd.get_trainset()
+# assert(train_x.shape[0] == train_y.shape[0])
+# print(train_x.shape, train_y.shape)
+
+# print("featurizing dev set")
+# dev_x, dev_y = fd.get_devset()
+# assert(dev_x.shape[0] == dev_y.shape[0])
+# print(dev_x.shape, dev_y.shape)
+
+
