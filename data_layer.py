@@ -92,7 +92,7 @@ class FeaturizeData():
         train_files_itr = SentenceFileItr(train_data_files)
         train_x = np.zeros((len(train_labels), 300)) # change this to num features
         for i, sentence in enumerate(train_files_itr):
-            if i % 100 == 0: print("Done {0} out of {1}".format(i, len(train_labels)))
+            if i % 500 == 0: print("Done {0} out of {1}".format(i, len(train_labels)))
             train_x[i] = self.get_feature_vector(sentence)
             # print(train_x[i])
 
