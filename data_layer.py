@@ -69,8 +69,9 @@ class FeaturizeData():
         self.unlabeled_data_dirname = unlabeled_data_dirname
         self.unlabeled_data_files = np.array([os.path.join(self.unlabeled_data_dirname, fname)
                                                 for fname in os.listdir(self.unlabeled_data_dirname)])
-        print("models loaded")
 
+        self.label_to_idx = dict()
+        print("models loaded")
 
     def get_trainset(self):
         train_data_files = []
@@ -81,6 +82,13 @@ class FeaturizeData():
                 train_data_files += [os.path.join(self.labeled_data_dirname, os.path.basename(row[0]))]
                 train_labels += [row[1]]
 
+        train_labels = np.array(train_labels)
+        unique_labels = np.unique(train_labels)
+        for i, unique_label in enumerate(unique_labels):
+            self.label_to_idx[unique_label] = i
+
+        train_label_idx = self.convert_label_to_idx(train_labels)
+
         train_files_itr = SentenceFileItr(train_data_files)
         train_x = np.zeros((len(train_labels), 300)) # change this to num features
         for i, sentence in enumerate(train_files_itr):
@@ -88,8 +96,7 @@ class FeaturizeData():
             train_x[i] = self.get_feature_vector(sentence)
             # print(train_x[i])
 
-        return train_x, np.array(train_labels)
-
+        return train_x, train_label_idx
 
     def get_devset(self):
         dev_data_files = []
@@ -99,13 +106,15 @@ class FeaturizeData():
             for row in reader:
                 dev_data_files += [os.path.join(self.labeled_data_dirname, os.path.basename(row[0]))]
                 dev_labels += [row[1]]
+
+        dev_label_idx = self.convert_label_to_idx(np.array(dev_labels))
+
         dev_files_itr = SentenceFileItr(dev_data_files)
         dev_x = np.zeros((len(dev_labels), 300))
         for i, sentence in enumerate(dev_files_itr):
             dev_x[i] = self.get_feature_vector(sentence)
 
-        return dev_x, np.array(dev_labels)
-
+        return dev_x, dev_label_idx
 
     def get_unlabeled_word_list(self, batch_size=10):
         np.random.shuffle(self.unlabeled_data_files)
@@ -120,6 +129,15 @@ class FeaturizeData():
 
             yield batch_word_list, batch_files
 
+    def convert_label_to_idx(self, label_list):
+        label_idx_list = np.zeros(label_list.shape[0])
+        for i, label in enumerate(label_list):
+            label_idx_list[i] = self.get_label_to_idx(label)
+
+        return label_idx_list
+
+    def get_label_to_idx(self, label):
+        return self.label_to_idx[label]
 
     def get_feature_vector(self, word_list):
         # print(word_list)
