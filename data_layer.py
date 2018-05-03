@@ -116,18 +116,18 @@ class FeaturizeData():
 
         return dev_x, dev_label_idx
 
-    def get_unlabeled_word_list(self, batch_size=10):
+    def get_unlabeled_feature_list(self, batch_size=10):
         np.random.shuffle(self.unlabeled_data_files)
         splits = self.unlabeled_data_files.shape[0] / batch_size
         batches = np.array_split(self.unlabeled_data_files, int(splits))
         for batch_files in batches:
             batch_itr = SentenceFileItr(batch_files)
-            batch_word_list = np.zeros((batch_files.shape[0], 300))
+            batch_feature_list = np.zeros((batch_files.shape[0], 300))
 
             for i, doc_word_list in enumerate(batch_itr):
-                batch_word_list[i] = self.get_feature_vector(doc_word_list)
+                batch_feature_list[i] = self.get_feature_vector(doc_word_list)
 
-            yield batch_word_list, batch_files
+            yield batch_feature_list
 
     def convert_label_to_idx(self, label_list):
         label_idx_list = np.zeros(label_list.shape[0])
