@@ -71,6 +71,7 @@ class FeaturizeData():
                                                 for fname in os.listdir(self.unlabeled_data_dirname)])
 
         self.label_to_idx = dict()
+        self.idx_to_label = dict()
         print("models loaded")
 
     def get_trainset(self):
@@ -86,6 +87,9 @@ class FeaturizeData():
         unique_labels = np.unique(train_labels)
         for i, unique_label in enumerate(unique_labels):
             self.label_to_idx[unique_label] = i
+
+        for k, v in self.label_to_idx.items():
+            self.idx_to_label[v] = k
 
         train_label_idx = self.convert_label_to_idx(train_labels)
 
@@ -127,7 +131,7 @@ class FeaturizeData():
             for i, doc_word_list in enumerate(batch_itr):
                 batch_feature_list[i] = self.get_feature_vector(doc_word_list)
 
-            yield batch_feature_list
+            yield batch_feature_list, batch_files
 
     def convert_label_to_idx(self, label_list):
         label_idx_list = np.zeros(label_list.shape[0])
@@ -135,6 +139,9 @@ class FeaturizeData():
             label_idx_list[i] = self.get_label_to_idx(label)
 
         return label_idx_list
+
+    def get_idx_to_label(self, idx):
+        return self.idx_to_label[idx]
 
     def get_label_to_idx(self, label):
         return self.label_to_idx[label]
